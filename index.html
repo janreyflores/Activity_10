@@ -18,12 +18,6 @@
       margin-bottom: 10px;
     }
 
-    p {
-      max-width: 900px;
-      line-height: 1.5;
-      margin-bottom: 20px;
-    }
-
     .calculator {
       width: 220px;
       background: #d9d9d9;
@@ -92,6 +86,7 @@
       padding: 10px;
       min-height: 90px;
       box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+      display: none;
     }
 
     .info-box h3 {
@@ -113,25 +108,25 @@
     <input type="text" id="display" class="display" value="0" readonly />
 
     <div class="buttons">
-      <button onclick="appendValue('7')">7</button>
-      <button onclick="appendValue('8')">8</button>
-      <button onclick="appendValue('9')">9</button>
-      <button onclick="appendValue('+')">+</button>
+      <button onclick="appendNumber('7')">7</button>
+      <button onclick="appendNumber('8')">8</button>
+      <button onclick="appendNumber('9')">9</button>
+      <button onclick="setOperator('+')">+</button>
 
-      <button onclick="appendValue('4')">4</button>
-      <button onclick="appendValue('5')">5</button>
-      <button onclick="appendValue('6')">6</button>
-      <button onclick="appendValue('-')">-</button>
+      <button onclick="appendNumber('4')">4</button>
+      <button onclick="appendNumber('5')">5</button>
+      <button onclick="appendNumber('6')">6</button>
+      <button onclick="setOperator('-')">-</button>
 
-      <button onclick="appendValue('1')">1</button>
-      <button onclick="appendValue('2')">2</button>
-      <button onclick="appendValue('3')">3</button>
-      <button onclick="appendValue('*')">*</button>
+      <button onclick="appendNumber('1')">1</button>
+      <button onclick="appendNumber('2')">2</button>
+      <button onclick="appendNumber('3')">3</button>
+      <button onclick="setOperator('*')">*</button>
 
       <button id="btnA" class="feature-btn" onclick="showDeveloperInfo()">A</button>
-      <button onclick="appendValue('0')">0</button>
+      <button onclick="appendNumber('0')">0</button>
       <button id="btnB" class="feature-btn" onclick="showAppInfo()">B</button>
-      <button onclick="appendValue('/')">/</button>
+      <button onclick="setOperator('/')">/</button>
 
       <div></div>
       <div></div>
@@ -142,99 +137,152 @@
     <button class="clear-btn" onclick="clearDisplay()">Clear</button>
   </div>
 
-  <div class="info-box" id="infoBox">
-    <h3>Information Panel</h3>
-    <p>Click A or B to display information here.</p>
-  </div>
-<script>
+  <div class="info-box" id="infoBox"></div>
 
-let showDev = false;
-let showApp = false;
+  <script>
+    let currentInput = "0";
+    let firstNumber = null;
+    let operator = null;
+    let waitingForSecondNumber = false;
 
-function appendValue(value) {
-  const display = document.getElementById("display");
+    let showDev = false;
+    let showApp = false;
 
-  if (display.value === "0" || display.value === "Error") {
-    if ("+-*/".includes(value)) {
-      display.value += value;
-    } else {
-      display.value = value;
+    function appendNumber(number) {
+      if (currentInput === "Error") return;
+
+      if (waitingForSecondNumber) {
+        currentInput = number;
+        waitingForSecondNumber = false;
+      } else {
+        currentInput = currentInput === "0" ? number : currentInput + number;
+      }
+
+      updateDisplay();
     }
-  } else {
-    display.value += value;
-  }
-}
 
-function clearDisplay() {
-  document.getElementById("display").value = "0";
+    function setOperator(nextOperator) {
+      if (currentInput === "Error") return;
 
-  showDev = false;
-  showApp = false;
+      const inputValue = parseFloat(currentInput);
 
-  document.getElementById("btnA").classList.remove("active-feature");
-  document.getElementById("btnB").classList.remove("active-feature");
+      if (firstNumber === null) {
+        firstNumber = inputValue;
+      } else if (!waitingForSecondNumber) {
+        firstNumber = performCalculation(firstNumber, inputValue, operator);
+        currentInput = String(firstNumber);
 
-  updateInfo();
-}
+        if (currentInput === "Error") {
+          updateDisplay();
+          return;
+        }
 
-function calculate() {
-  const display = document.getElementById("display");
+        updateDisplay();
+      }
 
-  try {
-    display.value = eval(display.value);
-  } catch (error) {
-    display.value = "Error";
-  }
-}
+      operator = nextOperator;
+      waitingForSecondNumber = true;
+    }
 
-function showDeveloperInfo() {
+    function calculate() {
+      if (operator === null || waitingForSecondNumber || currentInput === "Error") return;
 
-  showDev = !showDev;
+      const secondNumber = parseFloat(currentInput);
+      const result = performCalculation(firstNumber, secondNumber, operator);
 
-  document.getElementById("btnA").classList.toggle("active-feature");
+      currentInput = String(result);
+      updateDisplay();
 
-  updateInfo();
-}
+      if (currentInput !== "Error") {
+        firstNumber = result;
+      } else {
+        firstNumber = null;
+      }
 
-function showAppInfo() {
+      operator = null;
+      waitingForSecondNumber = false;
+    }
 
-  showApp = !showApp;
+    function performCalculation(first, second, op) {
+      switch (op) {
+        case "+":
+          return first + second;
+        case "-":
+          return first - second;
+        case "*":
+          return first * second;
+        case "/":
+          return second === 0 ? "Error" : first / second;
+        default:
+          return second;
+      }
+    }
 
-  document.getElementById("btnB").classList.toggle("active-feature");
+    function updateDisplay() {
+      document.getElementById("display").value = currentInput;
+    }
 
-  updateInfo();
-}
+    function clearDisplay() {
+      currentInput = "0";
+      firstNumber = null;
+      operator = null;
+      waitingForSecondNumber = false;
 
-function updateInfo() {
+      showDev = false;
+      showApp = false;
 
-  let content = "<h3>Information Panel</h3>";
+      document.getElementById("btnA").classList.remove("active-feature");
+      document.getElementById("btnB").classList.remove("active-feature");
+      document.getElementById("infoBox").style.display = "none";
+      document.getElementById("infoBox").innerHTML = "";
 
-  if (!showDev && !showApp) {
-    content += "<p>Click A or B to display information here.</p>";
-  }
+      updateDisplay();
+    }
 
-  if (showDev) {
-    content += `
-      <p><strong>Developer Information</strong></p>
-      <p><strong>Name:</strong> Janrey M. Flores</p>
-      <p><strong>Student ID No.:</strong> 2024-0944</p>
-      <p><strong>Role:</strong> Student / Web Developer</p>
-      <p><strong>Course:</strong> BSCS</p>
-      <hr>
-    `;
-  }
+    function showDeveloperInfo() {
+      showDev = !showDev;
+      document.getElementById("btnA").classList.toggle("active-feature");
+      updateInfo();
+    }
 
-  if (showApp) {
-    content += `
-      <p><strong>Application Information</strong></p>
-      <p><strong>Title: </strong>Standard Calculator</p>
-      <p><strong>Description:</strong> A simple web-based calculator that performs basic arithmetic operations and displays extra information using buttons A and B.</p>
-    `;
-  }
+    function showAppInfo() {
+      showApp = !showApp;
+      document.getElementById("btnB").classList.toggle("active-feature");
+      updateInfo();
+    }
 
-  document.getElementById("infoBox").innerHTML = content;
-}
+    function updateInfo() {
+      const infoBox = document.getElementById("infoBox");
+      let content = "";
 
-</script>
+      if (showDev) {
+        content += `
+          <h3>Developer Information</h3>
+          <p><strong>Name:</strong> Janrey M. Flores</p>
+          <p><strong>Student ID No.:</strong> 2024-0944</p>
+          <p><strong>Role:</strong> Student / Web Developer</p>
+          <p><strong>Course:</strong> BSCS</p>
+        `;
+      }
+
+      if (showApp) {
+        if (content !== "") content += "<hr>";
+        content += `
+          <h3>Application Information</h3>
+          <p><strong>Title:</strong> Standard Calculator</p>
+          <p><strong>Description:</strong> A simple web-based calculator that performs basic arithmetic operations and displays extra information using buttons A and B.</p>
+        `;
+      }
+
+      if (content === "") {
+        infoBox.style.display = "none";
+        infoBox.innerHTML = "";
+      } else {
+        infoBox.style.display = "block";
+        infoBox.innerHTML = content;
+      }
+    }
+  </script>
+
 </body>
 </html>
